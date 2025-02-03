@@ -1,4 +1,4 @@
-package http;
+package srcs.http;
 
 import java.io.IOException;
 import java.net.ServerSocket;
