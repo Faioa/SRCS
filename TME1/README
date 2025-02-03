@@ -1,0 +1,8 @@
+TME1 - Exercice 3 - Question 3
+
+Il est possible de régler facilement ce problème. En effet, l'implémentation actuelle de la sérialisation est naïve :
+lorsque l'on génère les objets à partir de la version serialisée, les objets initialement partagés sont dupliqués.
+Pour éviter cela, si le contexte le permet et que l'on sait que les objets sont uniques, alors verifier si un objet
+semblable a déjà été créer est suffisant. Sinon, on peut aussi complexifier la sérialisation en ajoutant une sorte de
+table de dépendance : on serialise les objets partagés une fois chacun en leur attribuant un identifiant, puis on
+utilise ces identifiants dans les sérialisation des objets qui les contiennent. Ici, la première approche suffira, si on enlève.
