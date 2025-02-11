@@ -1,14 +1,11 @@
 package srcs.service;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.Socket;
+public interface AppelDistant extends Service {
 
-public interface Service {
-
+    /*
+     * This function was already coded in the *Service* interface... I created this interface to follow the exercise,
+     * but it doesn't have any purpose at the moment...
+     *
     default void execute(Socket connexion) {
         try {
             ObjectInputStream in = new ObjectInputStream(connexion.getInputStream());
@@ -92,5 +89,6 @@ public interface Service {
             // Ignored : connexion with the client coundn't close
         }
     }
+    */
 
 }
