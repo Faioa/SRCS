@@ -1,6 +1,8 @@
 package srcs.securite;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 
@@ -14,7 +16,7 @@ public class ChannelBasic implements Channel {
 
     @Override
     public void send(byte[] bytesArray) throws IOException {
-        ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+        DataOutputStream os = new DataOutputStream(socket.getOutputStream());
         os.writeInt(bytesArray.length);
         os.write(bytesArray);
         os.flush();
@@ -22,10 +24,9 @@ public class ChannelBasic implements Channel {
 
     @Override
     public byte[] recv() throws IOException {
-        ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-        byte[] bytesArray = new byte[in.readInt()];
-        in.readFully(bytesArray);
-        return bytesArray;
+        DataInputStream in = new DataInputStream(socket.getInputStream());
+        int size = in.readInt();
+        return in.readNBytes(size);
     }
 
     @Override
@@ -47,4 +48,5 @@ public class ChannelBasic implements Channel {
     public int getLocalPort() {
         return socket.getLocalPort();
     }
+
 }

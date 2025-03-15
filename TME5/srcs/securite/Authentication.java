@@ -1,13 +1,13 @@
 package srcs.securite;
 
 import javax.crypto.Cipher;
+import java.io.EOFException;
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
-import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.Random;
 
 public class Authentication {
@@ -31,50 +31,56 @@ public class Authentication {
         login = null;
         password = null;
 
-        // Sending own certificate
-        channel.send(localCertif.getEncoded());
+        try {
+            // Sending own certificate
+            channel.send(localCertif.getEncoded());
 
-        // Receiving distant certificate
-        remoteCertif = Certif.getDecoded(channel.recv());
+            // Receiving distant certificate
+            remoteCertif = Certif.getDecoded(channel.recv());
 
-        // Verifying distant certificate (supposing both have the same AC)
-        if (!remoteCertif.verify(acPublicKey))
-            throw new CertificateCorruptedException("Certificate verification failed");
+            // Verifying distant certificate (supposing both have the same AC)
+            if (!remoteCertif.verify(acPublicKey))
+                throw new CertificateCorruptedException("Certificate verification failed");
 
-        Cipher cipher = Cipher.getInstance(acPublicKey.getAlgorithm());
+            Cipher cipher = Cipher.getInstance(acPublicKey.getAlgorithm());
 
-        // Receiving and sending the ciphered nonce
-        cipher.init(Cipher.ENCRYPT_MODE, localKeys.getPrivate());
-        channel.send(cipher.doFinal(channel.recv()));
+            // Receiving and sending the ciphered nonce
+            cipher.init(Cipher.ENCRYPT_MODE, localKeys.getPrivate());
+            channel.send(cipher.doFinal(channel.recv()));
 
-        // Pick a random number
-        Random randGen = new Random();
-        int nonce = randGen.nextInt();
+            // Pick a random nonce
+            Random randGen = new Random();
+            int nonce = randGen.nextInt();
 
-        // Sending the nonce
-        ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES);
-        buf.putInt(nonce);
-        buf.rewind();
-        channel.send(buf.array());
+            // Sending the nonce
+            ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES);
+            buf.putInt(nonce);
+            buf.rewind();
+            channel.send(buf.array());
 
-        // Receiving the distant ciphered nonce
-        cipher.init(Cipher.DECRYPT_MODE, remoteCertif.getPublicKey());
-        buf.put(cipher.doFinal(channel.recv()));
-        buf.rewind();
-        int ciphered_nonce = buf.getInt();
+            // Receiving the distant ciphered nonce
+            cipher.init(Cipher.DECRYPT_MODE, remoteCertif.getPublicKey());
+            buf.put(cipher.doFinal(channel.recv()));
+            buf.rewind();
+            int ciphered_nonce = buf.getInt();
 
-        // Authenticating the client
-        if (ciphered_nonce != nonce)
-            throw new AuthenticationFailedException("Nonce does not match");
+            // Authenticating the client
+            if (ciphered_nonce != nonce)
+                throw new AuthenticationFailedException("Nonce does not match");
 
-        // Receiving login
-        String login = new String(channel.recv());
+            // Receiving login
+            String login = new String(channel.recv());
 
-        // Receiving hashed password
-        cipher.init(Cipher.DECRYPT_MODE, localKeys.getPrivate());
-        String password = new String(cipher.doFinal(channel.recv()));
-        if (!passwordStore.checkPassword(login, password))
-            throw new AuthenticationFailedException("Credentials do not match");
+            // Receiving hashed password
+            cipher.init(Cipher.DECRYPT_MODE, localKeys.getPrivate());
+            String password = new String(cipher.doFinal(channel.recv()));
+
+            // Testing credentials
+            if (!passwordStore.checkPassword(login, password))
+                throw new AuthenticationFailedException("Credentials do not match");
+        } catch (EOFException | SocketException e) {
+            throw new AuthenticationFailedException("An error occurred on the connection", e);
+        }
     }
 
     // Client's constructor
@@ -87,48 +93,52 @@ public class Authentication {
         this.password = password;
         passwordStore = null;
 
-        // Sending own certificate
-        channel.send(localCertif.getEncoded());
+        try {
+            // Sending own certificate
+            channel.send(localCertif.getEncoded());
 
-        // Receiving distant certificate
-        remoteCertif = Certif.getDecoded(channel.recv());
+            // Receiving distant certificate
+            remoteCertif = Certif.getDecoded(channel.recv());
 
-        // Verifying distant certificate (supposing both have the same AC)
-        if (!remoteCertif.verify(acPublicKey))
-            throw new CertificateCorruptedException("Certificate verification failed");
+            // Verifying distant certificate (supposing both have the same AC)
+            if (!remoteCertif.verify(acPublicKey))
+                throw new CertificateCorruptedException("Certificate verification failed");
 
-        // Pick a random nonce
-        Random randGen = new Random();
-        int nonce = randGen.nextInt();
+            Cipher cipher = Cipher.getInstance(acPublicKey.getAlgorithm());
 
-        Cipher cipher = Cipher.getInstance(acPublicKey.getAlgorithm());
+            // Pick a random nonce
+            Random randGen = new Random();
+            int nonce = randGen.nextInt();
 
-        // Sending the nonce
-        ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES);
-        buf.putInt(nonce);
-        buf.rewind();
-        channel.send(buf.array());
+            // Sending the nonce
+            ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES);
+            buf.putInt(nonce);
+            buf.rewind();
+            channel.send(buf.array());
 
-        // Receiving the distant ciphered nonce
-        cipher.init(Cipher.DECRYPT_MODE, remoteCertif.getPublicKey());
-        buf.put(cipher.doFinal(channel.recv()));
-        buf.rewind();
-        int ciphered_nonce = buf.getInt();
+            // Receiving the distant ciphered nonce
+            cipher.init(Cipher.DECRYPT_MODE, remoteCertif.getPublicKey());
+            buf.put(cipher.doFinal(channel.recv()));
+            buf.rewind();
+            int ciphered_nonce = buf.getInt();
 
-        // Authenticating the server
-        if (ciphered_nonce != nonce)
-            throw new AuthenticationFailedException("Nonce does not match");
+            // Authenticating the server
+            if (ciphered_nonce != nonce)
+                throw new AuthenticationFailedException("Nonce does not match");
 
-        // Receiving and sending the distant nonce
-        cipher.init(Cipher.ENCRYPT_MODE, localKeys.getPrivate());
-        channel.send(cipher.doFinal(channel.recv()));
+            // Receiving and sending the distant nonce
+            cipher.init(Cipher.ENCRYPT_MODE, localKeys.getPrivate());
+            channel.send(cipher.doFinal(channel.recv()));
 
-        // Sending login
-        channel.send(login.getBytes());
+            // Sending login
+            channel.send(login.getBytes());
 
-        // Sending the hashed ciphered password
-        cipher.init(Cipher.ENCRYPT_MODE, remoteCertif.getPublicKey());
-        channel.send(cipher.doFinal(password.getBytes()));
+            // Sending the hashed ciphered password
+            cipher.init(Cipher.ENCRYPT_MODE, remoteCertif.getPublicKey());
+            channel.send(cipher.doFinal(password.getBytes()));
+        } catch (EOFException | SocketException e) {
+            throw new AuthenticationFailedException("An error occurred on the connection", e);
+        }
     }
 
     public Certif getLocalCertif() {
