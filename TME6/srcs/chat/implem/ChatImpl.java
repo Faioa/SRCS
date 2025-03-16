@@ -1,9 +1,13 @@
 package srcs.chat.implem;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.Empty;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.StringValue;
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -12,6 +16,7 @@ import srcs.grpc.util.BuilderUtil;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 
 public class ChatImpl extends ChatGrpc.ChatImplBase {
 
@@ -36,10 +41,25 @@ public class ChatImpl extends ChatGrpc.ChatImplBase {
     public void send(ChatMessage request, StreamObserver<Int32Value> responseObserver) {
         int sent_to = 0;
         sent_to = directory.size();
+
         for (ManagedChannel channel : directory.values()) {
             MessageReceiverGrpc.MessageReceiverFutureStub stub = MessageReceiverGrpc.newFutureStub(channel);
-            // Sending the message in asynchronous mode. Discarding the Future as we don't want the result anyway
-            stub.newMessage(request);
+            /*
+             Sending the message in asynchronous mode. Discarding the Futures as we don't want their results anyway.
+             Using another Context is REQUIRED because the asynchronous calls try to cancel the calls on the channels after
+             a delay if the result is not explicitly ended, and it leads to the Context being canceled and every channel
+             using it are reset, causing error to be thrown with further utilisation.
+             */
+            Context ctx = Context.ROOT.withCancellation();
+            ctx.run(() -> {
+                Futures.addCallback(stub.newMessage(request), new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(Empty result) {}
+
+                    @Override
+                    public void onFailure(Throwable throwable) {}
+                }, Executors.newSingleThreadExecutor());
+            });
         }
         responseObserver.onNext(Int32Value.newBuilder().setValue(sent_to).build());
         responseObserver.onCompleted();
@@ -54,7 +74,9 @@ public class ChatImpl extends ChatGrpc.ChatImplBase {
 
     @Override
     public void unsubscribe(StringValue request, StreamObserver<Empty> responseObserver) {
-        directory.remove(request.getValue()).shutdown();
+        ManagedChannel channel = directory.remove(request.getValue());
+        if (channel != null)
+            channel.shutdown();
         responseObserver.onNext(Empty.getDefaultInstance());
         responseObserver.onCompleted();
     }
