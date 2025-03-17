@@ -43,22 +43,25 @@ public class ChatImpl extends ChatGrpc.ChatImplBase {
         sent_to = directory.size();
 
         for (ManagedChannel channel : directory.values()) {
-            MessageReceiverGrpc.MessageReceiverFutureStub stub = MessageReceiverGrpc.newFutureStub(channel);
+            MessageReceiverGrpc.MessageReceiverStub stub = MessageReceiverGrpc.newStub(channel);
             /*
-             Sending the message in asynchronous mode. Discarding the Futures as we don't want their results anyway.
+             Sending the message in asynchronous mode. Can use empty handlers as we don't need to know if it succeeded.
              Using another Context is REQUIRED because the asynchronous calls try to cancel the calls on the channels after
              a delay if the result is not explicitly ended, and it leads to the Context being canceled and every channel
              using it are reset, causing error to be thrown with further utilisation.
              */
             Context ctx = Context.ROOT.withCancellation();
             ctx.run(() -> {
-                Futures.addCallback(stub.newMessage(request), new FutureCallback<>() {
+                stub.newMessage(request, new StreamObserver<Empty>() {
                     @Override
-                    public void onSuccess(Empty result) {}
+                    public void onNext(Empty empty) {}
 
                     @Override
-                    public void onFailure(Throwable throwable) {}
-                }, Executors.newSingleThreadExecutor());
+                    public void onError(Throwable throwable) {}
+
+                    @Override
+                    public void onCompleted() {}
+                });
             });
         }
         responseObserver.onNext(Int32Value.newBuilder().setValue(sent_to).build());
