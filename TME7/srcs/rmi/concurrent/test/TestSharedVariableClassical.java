@@ -20,7 +20,7 @@ import srcs.rmi.concurrent.SharedVariable;
 public class TestSharedVariableClassical extends SystemDeployer {
 
 	final int timeout=2000;
-	final String nameService="variableIntegerClassical";
+	final static String nameService="variableIntegerClassical";
 	
 		
 	
