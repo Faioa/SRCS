@@ -4,6 +4,7 @@ import org.junit.After;
 import org.junit.Before;
 import srcs.rmi.concurrent.SharedVariable;
 import srcs.rmi.concurrent.SharedVariableClassical;
+import srcs.rmi.concurrent.SharedVariableReliable;
 
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
@@ -17,10 +18,12 @@ public class SystemDeployer {
 
     private SharedVariable<Integer> variable = null;
     private Registry registry = null;
+    public static String serviceName = "variableInteger";
 
     @Before
     public void setUp() throws RemoteException, AlreadyBoundException {
-        variable = new SharedVariableClassical<>(0);
+        //variable = new SharedVariableClassical<>(0);
+        variable = new SharedVariableReliable<>(0);
         SharedVariable<Integer> stub = (SharedVariable<Integer>)UnicastRemoteObject.exportObject(variable, 1099);
 
         try {
@@ -28,13 +31,13 @@ public class SystemDeployer {
         } catch (RemoteException e) {
             registry = LocateRegistry.getRegistry(1099);
         }
-        registry.rebind(TestSharedVariableClassical.nameService, stub);
+        registry.rebind(serviceName, stub);
     }
 
     @After
     public void tearDown() throws RemoteException, NotBoundException {
         UnicastRemoteObject.unexportObject(variable, false);
-        registry.unbind(TestSharedVariableClassical.nameService);
+        registry.unbind(serviceName);
         variable = null;
     }
 

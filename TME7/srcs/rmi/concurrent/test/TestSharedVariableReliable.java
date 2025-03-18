@@ -16,7 +16,7 @@ import srcs.rmi.concurrent.SharedVariable;
 public class TestSharedVariableReliable extends SystemDeployer {
 
 	int timeout = 3000;
-	static final String nameService="variableIntegerReliable";
+	final String nameService=SystemDeployer.serviceName;
 	@SuppressWarnings("unchecked")
 	@Test
 	public void test() throws RemoteException, InterruptedException, NotBoundException {
